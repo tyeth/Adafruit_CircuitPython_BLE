@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2024 Tyeth Gundry for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
-# Adafruit Service demo for Adafruit Feather Bluefruit Sense board, may work
-# with other boards. UI Accessible via Adafruit Web Bluetooth Dashboard.
+# Adafruit BLE Service demo for Adafruit Feather Bluefruit Sense board, may work
+# with other boards. Accessible via Adafruit Web Bluetooth Dashboard / BlueFruit apps.
 # (As of this writing, 2021, not yet accessible via Bluefruit Playground app.)
 
 import time
@@ -22,6 +22,8 @@ import audiobusio
 import adafruit_apds9960.apds9960
 import adafruit_bmp280
 import adafruit_lsm6ds.lsm6ds33
+import adafruit_lsm9ds1
+import adafruit_lsm303_accel
 import adafruit_sht31d
 
 from adafruit_ble_adafruit.adafruit_service import AdafruitServerAdvertisement
@@ -35,20 +37,49 @@ from adafruit_ble_adafruit.light_sensor_service import LightSensorService
 from adafruit_ble_adafruit.microphone_service import MicrophoneService
 from adafruit_ble_adafruit.temperature_service import TemperatureService
 
-i2c = board.I2C() if hasattr(board, "I2C") else busio.I2C(board.IO44, board.IO43)
+i2c = board.I2C() if hasattr(board, "I2C") else \
+    board.STEMMA_I2C() if hasattr(board, "STEMMA_I2C") else \
+    busio.I2C(board.SCL, board.SDA) if hasattr(board, "SCL") else \
+    busio.I2C(board.SCL1, board.SDA1) if hasattr(board, "SCL1") else \
+    busio.I2C(board.IO44, board.IO43) # LilyGo T-Display S3 - Set your pins here!
 
 # Set your button pin here:
 button_pin = board.SWITCH if hasattr(board, "SWITCH") \
     else board.BUTTON0 if hasattr(board, "BUTTON0") \
     else board.BOOT0 if hasattr(board, "BOOT0") \
     else board.BOOT if hasattr(board, "BOOT") \
-    else board.D0
+    else board.D0 # esp boot button - Set your button pin here!
 
 try:
     # Accelerometer
     lsm6ds33 = adafruit_lsm6ds.lsm6ds33.LSM6DS33(i2c)
-except:
+    print("Using LSM6DS33 accelerometer.")
+except Exception as e:
+    print("No LSM6DS33 found.", e)
     lsm6ds33 = None
+
+if lsm6ds33 is None:
+    try:
+        # Alternative accelerometer
+        lms9ds1 = adafruit_lsm9ds1.LSM9DS1_I2C(i2c)
+        lsm6ds33 = lms9ds1
+        #{"acceleration": lms9ds1.acceleration, "gyro": lms9ds1.gyro, "magnetic": lms9ds1.magnetic}
+        print("Using LSM9DS1 accelerometer.")
+    except Exception as e:
+        print("No LSM9DS1 found.", e)
+        lsm6ds33 = None
+
+if lsm6ds33 is None:
+    try:
+        # Alternative accelerometer
+        lsm303 = adafruit_lsm303_accel.LSM303_Accel (i2c)
+        lsm303.accelerometer_enabled = True
+        lsm6ds33 = lsm303
+        print("Using LSM303 accelerometer.")
+    except Exception as e:
+        print("No LSM303 detected, nor any accelerometers found.", e)
+        lsm6ds33 = None
+
 
 try:
     # Used for pressure and temperature.
@@ -82,7 +113,7 @@ else:
 # Create and initialize the available services.
 if lsm6ds33 is not None:
     accel_svc = AccelerometerService()
-    accel_svc.measurement_period = 100
+    accel_svc.measurement_period = 500
     accel_last_update = 0
 
 if hasattr(board, "NEOPIXEL"):
@@ -146,7 +177,7 @@ if (
 ble = BLERadio()
 # The Web Bluetooth dashboard identifies known boards by their
 # advertised name, not by advertising manufacturer data.
-ble.name = "Sense"
+ble.name = "Sense" # Pretend to be a Feather Bluefruit Sense
 
 # The Bluefruit Playground app looks in the manufacturer data
 # in the advertisement. That data uses the USB PID as a unique ID.
