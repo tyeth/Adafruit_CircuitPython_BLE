@@ -41,13 +41,15 @@ i2c = board.I2C() if hasattr(board, "I2C") else \
     board.STEMMA_I2C() if hasattr(board, "STEMMA_I2C") else \
     busio.I2C(board.SCL, board.SDA) if hasattr(board, "SCL") else \
     busio.I2C(board.SCL1, board.SDA1) if hasattr(board, "SCL1") else \
+    busio.I2C(board.STEMMA_SCL, board.STEMMA_SDA) if hasattr(board, "STEMMA_SCL") else \
     busio.I2C(board.IO44, board.IO43) # LilyGo T-Display S3 - Set your pins here!
 
 # Set your button pin here:
 button_pin = board.SWITCH if hasattr(board, "SWITCH") \
+    else board.BUTTON if hasattr(board, "BUTTON") \
     else board.BUTTON0 if hasattr(board, "BUTTON0") \
-    else board.BOOT0 if hasattr(board, "BOOT0") \
     else board.BOOT if hasattr(board, "BOOT") \
+    else board.BOOT0 if hasattr(board, "BOOT0") \
     else board.D0 # esp boot button - Set your button pin here!
 
 try:
